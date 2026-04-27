@@ -82,27 +82,62 @@ def download_file(id, output_dir = ".", file_type="pdf"):
 
 
 def get_id_path(path):
-    current_id = ""
+    current_id = {"ID":""}
     for f in path.split('/'):
-        folders = list_folder(subfolder=current_id)
+        folders = list_folder(subfolder=current_id["ID"])
         for e in folders:
             if e["VisibleName"] == f and e["Type"]:
-                current_id = e["ID"]
+                current_id = e
     return current_id
 
 def main():
+
+    # Single command execute
     if len(sys.argv)>=2:
+
         if sys.argv[1] == "-l":
             if len(sys.argv) >= 3:
                 list_folder(subfolder=sys.argv[2])
             else: list_folder()
+
         elif sys.argv[1] == "-u":
-            if len(sys.argv) > 3: upload_file(sys.argv[2], get_id_path(sys.argv[3]))
+            if len(sys.argv) > 3: upload_file(sys.argv[2], get_id_path(sys.argv[3])["ID"])
             else: upload_file(sys.argv[2])
+
         elif sys.argv[1] == "-d":
-            id = get_id_path(sys.argv[2])
-            if len(sys.argv) > 3: download_file(id, sys.argv[3])
-            else: download_file(id)
+            target = get_id_path(sys.argv[2])
+
+            # Download single element
+            if target["Type"] == "DocumentType":
+                if len(sys.argv) > 3: download_file(target["ID"], sys.argv[3])
+                else: download_file(id)
+            # Folder wide download
+            else:
+                out_dir = "."
+                if len(sys.argv) > 3 and sys.argv[3] != "-r": out_dir = sys.argv[3]
+                os.mkdir(out_dir+'/'+target["VisibleName"])
+                client_path = {out_dir+'/'+target["VisibleName"]: target["ID"]}
+                next_client_path = {}
+
+                # Recursive download
+                if sys.argv[-1] == "-r":
+                    while len(client_path) > 0:
+                        for (path, id) in client_path.items():
+                            for e in list_folder(subfolder=id):
+                                if e["Type"] == "DocumentType":
+                                    print("Downloading:", e["VisibleName"])
+                                    download_file(e["ID"], output_dir=path)
+                                else:
+                                    next_client_path[path+"/"+e["VisibleName"]] = e["ID"]
+                                    os.mkdir(path+"/"+e["VisibleName"])
+                        client_path = next_client_path
+                        next_client_path = {}
+
+                # Single level download
+                else:
+                    for e in list_folder(subfolder=target["ID"]):
+                        if e["Type"] == "DocumentType":
+                            download_file(e["ID"], out_dir+"/"+target["VisibleName"])
     else:
         com = ""
         path = [{"ID": "", "VisibleName": ""}]
