@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import requests
 import json
 import sys
@@ -22,7 +24,9 @@ def list_folder(subfolder = "", show =False):
                 print(f"- 🖹  {p["VisibleName"]}")
     return post
 
-def upload_file(file_path):
+def upload_file(file_path, folder_id = None):
+    if folder_id:
+        list_folder(subfolder=folder_id)
     url = f"{BASE_URL}/upload"
     with open(file_path, 'rb') as f:
         # Prepare the multipart form data
@@ -42,10 +46,8 @@ def upload_file(file_path):
         else:
             print(f"Resposta {response.status_code}, possible error")
 
-def download_file(id, output_dir = "."):
-    url = f"{BASE_URL}/download/{id}/pdf"
-    print(f"Downloading notebook: {id}")
-    print(f"From: {url}\n")
+def download_file(id, output_dir = ".", file_type="pdf"):
+    url = f"{BASE_URL}/download/{id}/{file_type}"
     
     try:
         # Make the GET request
@@ -95,10 +97,12 @@ def main():
                 list_folder(subfolder=sys.argv[2])
             else: list_folder()
         elif sys.argv[1] == "-u":
-            upload_file(sys.argv[2])
+            if len(sys.argv) > 3: upload_file(sys.argv[2], get_id_path(sys.argv[3]))
+            else: upload_file(sys.argv[2])
         elif sys.argv[1] == "-d":
             id = get_id_path(sys.argv[2])
-            download_file(id)
+            if len(sys.argv) > 3: download_file(id, sys.argv[3])
+            else: download_file(id)
     else:
         com = ""
         path = [{"ID": "", "VisibleName": ""}]
@@ -119,6 +123,18 @@ def main():
                                 path.append(e)
                                 print(path[-1])
                                 break
+                elif coms[0] == "download":
+                    folders = list_folder(subfolder=path[-1]["ID"])
+                    out = "."
+                    if len(coms) > 2: out = coms[2]
+                    for e in folders:
+                        if e["VisibleName"] == coms[1]:
+                                download_file(e["ID"], out)
+                                break
+                elif coms[0] == "upload":
+                    upload_file(coms[1], folder_id=path[-1]["ID"])
+                else:
+                    print("comanda no identificada")
 
 
 
